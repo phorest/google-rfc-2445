@@ -368,21 +368,27 @@ public class RecurrenceIteratorFactory {
         break;
     }
 
+    // A time part that has no BY clause takes its value from dtStart.  start
+    // can have been rolled back to midnight for BYSETPOS, so it must not
+    // supply that value.
     if (secondGenerator == null) {
-      secondGenerator = Generators.bySecondGenerator(bySecond, start);
+      secondGenerator = Generators.bySecondGenerator(
+          bySecond, bySecond.length == 0 ? dtStart : start);
     }
     if (minuteGenerator == null) {
       if (byMinute.length == 0 && freq.compareTo(Frequency.MINUTELY) < 0) {
         minuteGenerator = Generators.serialMinuteGenerator(1, dtStart);
       } else {
-        minuteGenerator = Generators.byMinuteGenerator(byMinute, start);
+        minuteGenerator = Generators.byMinuteGenerator(
+            byMinute, byMinute.length == 0 ? dtStart : start);
       }
     }
     if (hourGenerator == null) {
       if (byHour.length == 0 && freq.compareTo(Frequency.HOURLY) < 0) {
         hourGenerator = Generators.serialHourGenerator(1, dtStart);
       } else {
-        hourGenerator = Generators.byHourGenerator(byHour, start);
+        hourGenerator = Generators.byHourGenerator(
+            byHour, byHour.length == 0 ? dtStart : start);
       }
     }
 

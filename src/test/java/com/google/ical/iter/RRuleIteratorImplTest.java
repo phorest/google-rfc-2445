@@ -1045,6 +1045,30 @@ public class RRuleIteratorImplTest extends TestCase {
         + "19090501T075748,19090502T075706,19090507T075706,...");
   }
 
+  // A BYSETPOS rule with a monthly or yearly frequency used to return midnight
+  // instead of the time of day of dtStart.
+  public void testMonthlyBySetPosKeepsTimeOfDay() throws Exception {
+    runRecurrenceIteratorTest(
+        "RRULE:FREQ=MONTHLY;BYDAY=TU;BYSETPOS=4",
+        IcalParseUtil.parseDateValue("20150220T093015"), 3,
+        "20150224T093015,20150324T093015,20150428T093015,...");
+  }
+
+  public void testYearlyBySetPosKeepsTimeOfDay() throws Exception {
+    runRecurrenceIteratorTest(
+        "RRULE:FREQ=YEARLY;INTERVAL=2;BYDAY=SA;BYMONTH=9;BYSETPOS=1",
+        IcalParseUtil.parseDateValue("20130831T060020"), 3,
+        "20130907T060020,20150905T060020,20170902T060020,...");
+  }
+
+  // BYHOUR is given, so only the minute and the second come from dtStart.
+  public void testBySetPosWithByHourKeepsMinuteAndSecond() throws Exception {
+    runRecurrenceIteratorTest(
+        "RRULE:FREQ=MONTHLY;BYDAY=TU;BYHOUR=17;BYSETPOS=4",
+        IcalParseUtil.parseDateValue("20150220T093015"), 3,
+        "20150224T173015,20150324T173015,20150428T173015,...");
+  }
+
   public void testMonkeyHourly() throws Exception {
     runRecurrenceIteratorTest(
         "EXRULE:FREQ=HOURLY;INTERVAL=1;BYMONTHDAY=12,10,-4",
