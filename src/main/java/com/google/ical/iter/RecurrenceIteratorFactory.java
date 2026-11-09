@@ -446,6 +446,14 @@ public class RecurrenceIteratorFactory {
     } else {
       condition = Predicates.<DateValue>alwaysTrue();
     }
+    if (0 != bySetPos.length) {
+      // The BYSETPOS generator keeps its own position in the set it built for
+      // the current period, and may already hold the first date of the next
+      // period.  If advanceTo moved the builder to the target month or year
+      // first, the generator would carry on from its old position and could
+      // skip a month or a year.
+      canShortcutAdvance = false;
+    }
 
     // combine filters into a single function
     Predicate<? super DateValue> filter;

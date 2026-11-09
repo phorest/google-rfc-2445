@@ -93,6 +93,19 @@ public class DateTimeIteratorFactoryTest extends TestCase {
     assertTrue(!it.hasNext());
   }
 
+  // issue #13: advanceTo skipped the 4th Tuesday of the month it jumped into.
+  public void testAdvanceToMonthlyBySetPos() throws Exception {
+    DateTime start = dateTime(2015, 2, 20, 0, 0, 0);
+    DateTimeIterator it = DateTimeIteratorFactory.createDateTimeIterable(
+        "RRULE:FREQ=MONTHLY;INTERVAL=1;BYDAY=TU;BYSETPOS=4", start,
+        start.getZone(), true).iterator();
+    it.advanceTo(dateTime(2015, 4, 20, 0, 0, 0));
+    assertTrue(it.hasNext());
+    assertEquals(dateTime(2015, 4, 28, 0, 0, 0), it.next());
+    assertTrue(it.hasNext());
+    assertEquals(dateTime(2015, 5, 26, 0, 0, 0), it.next());
+  }
+
   private static DateTime dateTime(int y, int m, int d, int h, int n, int s) {
     return dateTime(y, m, d, h, n, s, DateTimeZone.UTC);
   }

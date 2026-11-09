@@ -20,6 +20,8 @@ import com.google.ical.values.PeriodValue;
 import com.google.ical.values.RRule;
 import com.google.ical.util.DTBuilder;
 import com.google.ical.util.TimeUtils;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.TimeZone;
 import junit.framework.TestCase;
 
@@ -1087,6 +1089,114 @@ public class RRuleIteratorImplTest extends TestCase {
         "20510312T201047,20510312T211047,20510312T221047,20510312T231047," +
         "..."
         );
+  }
+
+  // advanceTo on a BYSETPOS rule used to skip the occurrence of the period it
+  // jumped into (issues #13 and #11).
+  public void testAdvanceToMonthlyBySetPos() throws Exception {
+    runRecurrenceIteratorTest(
+        "RRULE:FREQ=MONTHLY;INTERVAL=1;BYDAY=TU;BYSETPOS=4",
+        IcalParseUtil.parseDateValue("20150220"), 3,
+        "20150428,20150526,20150623,...",
+        IcalParseUtil.parseDateValue("20150420"));
+  }
+
+  public void testAdvanceToYearlyBySetPos() throws Exception {
+    runRecurrenceIteratorTest(
+        "RRULE:FREQ=YEARLY;INTERVAL=2;BYDAY=SA;BYMONTH=9;BYSETPOS=1",
+        IcalParseUtil.parseDateValue("20130831"), 3,
+        "20150905,20170902,20190907,...",
+        IcalParseUtil.parseDateValue("20131001"));
+  }
+
+  public void testAdvanceToAroundABySetPosInstance() throws Exception {
+    DateValue start = IcalParseUtil.parseDateValue("20150220");
+    String rule = "RRULE:FREQ=MONTHLY;BYDAY=TU;BYSETPOS=4";
+    // the day before, the day of and the day after the 4th Tuesday of April
+    runRecurrenceIteratorTest(rule, start, 2, "20150428,20150526,...",
+        IcalParseUtil.parseDateValue("20150427"));
+    runRecurrenceIteratorTest(rule, start, 2, "20150428,20150526,...",
+        IcalParseUtil.parseDateValue("20150428"));
+    runRecurrenceIteratorTest(rule, start, 2, "20150526,20150623,...",
+        IcalParseUtil.parseDateValue("20150429"));
+  }
+
+  /**
+   * advanceTo(t) must yield the instances that plain iteration yields at or
+   * after t, for each of the first {@code days} days after dtStart.  The
+   * targets stay inside the 100 year limit of the year generator.
+   */
+  private void assertAdvanceToAgreesWithIteration(
+      String rruleText, DateValue dtStart, int days) throws Exception {
+    List<DateValue> all = new ArrayList<DateValue>();
+    RecurrenceIterator full =
+        RecurrenceIteratorFactory.createRecurrenceIterator(
+            new RRule(rruleText), dtStart, UTC);
+    while (full.hasNext() && all.size() < 200) { all.add(full.next()); }
+
+    DTBuilder target = new DTBuilder(dtStart);
+    for (int d = 0; d < days; ++d) {
+      target.day += 1;
+      target.normalize();
+      DateValue t = target.toDate();
+
+      StringBuilder want = new StringBuilder();
+      int n = 0;
+      for (DateValue v : all) {
+        if (v.compareTo(t) >= 0 && n < 4) {
+          want.append(v).append(',');
+          ++n;
+        }
+      }
+      assertEquals(rruleText + " has 4 instances from " + t, 4, n);
+
+      RecurrenceIterator ri =
+          RecurrenceIteratorFactory.createRecurrenceIterator(
+              new RRule(rruleText), dtStart, UTC);
+      ri.advanceTo(t);
+      StringBuilder got = new StringBuilder();
+      for (int k = 0; k < 4 && ri.hasNext(); ++k) {
+        got.append(ri.next()).append(',');
+      }
+      assertEquals(
+          rruleText + " advanceTo " + t, want.toString(), got.toString());
+    }
+  }
+
+  public void testAdvanceToAgreesMonthlyFourthTuesday() throws Exception {
+    assertAdvanceToAgreesWithIteration(
+        "RRULE:FREQ=MONTHLY;BYDAY=TU;BYSETPOS=4",
+        IcalParseUtil.parseDateValue("20150220"), 400);
+  }
+
+  public void testAdvanceToAgreesMonthlyLastFriday() throws Exception {
+    assertAdvanceToAgreesWithIteration(
+        "RRULE:FREQ=MONTHLY;BYDAY=FR;BYSETPOS=-1",
+        IcalParseUtil.parseDateValue("20150220"), 400);
+  }
+
+  public void testAdvanceToAgreesMonthlyFirstAndLast() throws Exception {
+    assertAdvanceToAgreesWithIteration(
+        "RRULE:FREQ=MONTHLY;INTERVAL=2;BYDAY=MO,WE,FR;BYSETPOS=1,-1",
+        IcalParseUtil.parseDateValue("20150220"), 400);
+  }
+
+  public void testAdvanceToAgreesYearlyFirstSaturday() throws Exception {
+    assertAdvanceToAgreesWithIteration(
+        "RRULE:FREQ=YEARLY;INTERVAL=2;BYDAY=SA;BYMONTH=9;BYSETPOS=1",
+        IcalParseUtil.parseDateValue("20130831"), 1500);
+  }
+
+  public void testAdvanceToAgreesYearlyLastWeekday() throws Exception {
+    assertAdvanceToAgreesWithIteration(
+        "RRULE:FREQ=YEARLY;BYDAY=MO,TU,WE,TH,FR;BYSETPOS=-1",
+        IcalParseUtil.parseDateValue("20150220"), 800);
+  }
+
+  public void testAdvanceToAgreesWeeklyLastDay() throws Exception {
+    assertAdvanceToAgreesWithIteration(
+        "RRULE:FREQ=WEEKLY;BYDAY=MO,WE,FR;BYSETPOS=-1",
+        IcalParseUtil.parseDateValue("20150220"), 120);
   }
 
   // TODO(msamuel): test BYSETPOS with FREQ in (WEEKLY,MONTHLY,YEARLY) x
